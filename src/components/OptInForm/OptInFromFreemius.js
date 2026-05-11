@@ -5,9 +5,19 @@ import useWPAjax from "../../utils/useWPAjax";
 
 const OptInFromFreemius = ({ nonce, pluginId }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
   const { data } = useWPAjax("bsdk_fetch_info_" + pluginId, { nonce });
   const return_url = `${data?.admin_url}admin.php?page=${data?.slug}-opt-in&fs_action=${data?.slug}_activate_new&_wpnonce=${data?.nonce}`;
   const skip_url = `${data?.admin_url}${data?.menu?.["first-path"] ? data?.menu?.["first-path"] : 'plugins.php'}`;
+
+  const handleSkip = (e) => {
+    e.preventDefault();
+    setIsSkipping(true);
+    const action = "fs_lite_init_" + pluginId;
+    const payload = { nonce, info: { is_skip_activation: 'true' } };
+    wp.ajax.post(action, payload)
+      .always(() => { window.location.href = skip_url; });
+  };
 
   return (
     <div id="fs_connect" className="wrap">
@@ -34,8 +44,10 @@ const OptInFromFreemius = ({ nonce, pluginId }) => {
             href={skip_url}
             className="button button-secondary"
             tabindex="2"
+            onClick={handleSkip}
+            disabled={isSkipping}
           >
-            Skip
+            {isSkipping ? 'Skipping…' : 'Skip'}
           </a>
           <form method="POST" action={data?.freemius_form_action}>
             <>
