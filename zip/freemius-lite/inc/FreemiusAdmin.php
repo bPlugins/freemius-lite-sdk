@@ -206,9 +206,7 @@ if (!class_exists('FreemiusLiteAdmin')) {
 			add_action('admin_footer', [$this, 'inline_init']);
 			add_action('admin_notices', [$this, 'notice']);
 
-			if (!$this->status) {
-				add_action('admin_menu', [$this, 'menu']);
-			}
+			add_action('admin_menu', [$this, 'menu']);
 
 			// AJAX handlers — process opt-in form submissions (user-initiated only).
 			add_action('wp_ajax_bsdk_fetch_info_' . $this->config->id, [$this, 'ajax_fetch_info']);

@@ -63,7 +63,7 @@ const OptInFromFreemius = ({ nonce, pluginId }) => {
               <input type="hidden" name="plugin_public_key" value={data?.public_key} />
               <input type="hidden" name="plugin_version" value={data?.plugin_version} />
               <input type="hidden" name="return_url" value={return_url} />
-              <input type="hidden" name="account_url" value={data?.admin_url + `admin.php?_wpnonce=${data?.nonce}`} />
+              <input type="hidden" name="account_url" value={`${data?.admin_url}admin.php?page=${data?.slug}-opt-in&fs_action=${data?.slug}_activate_new&_wpnonce=${data?.nonce}`} />
               <input type="hidden" name="is_premium" value="" />
               <input type="hidden" name="is_active" value="1" />
               <input type="hidden" name="is_uninstalled" value="" />
