@@ -163,8 +163,6 @@ An anonymous site identifier (MD5 hash) used to track activation/deactivation ev
 * Initial release.
 
 
-
-
 = Freemius Lite SDK =
 
 * **Source:** [https://bplugins.com/](https://bplugins.com/)

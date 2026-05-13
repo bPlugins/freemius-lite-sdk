@@ -1,153 +1,232 @@
-# Documentation
+# Freemius Lite SDK
 
-## **Step 1 - Install**
+A lightweight, Freemius-compatible opt-in SDK for WordPress Gutenberg block plugins.
 
-### To Integrate only Opted form (Only for Freemius plugins)
+[![License: GPL v2+](https://img.shields.io/badge/License-GPL%20v2%2B-blue.svg)](LICENSE.md)
+[![PHP](https://img.shields.io/badge/PHP-7.4%2B-777BB4.svg)](https://www.php.net/)
+[![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759B.svg)](https://wordpress.org/)
 
-1. Download the sdk.zip from https://github.com/bPlugins/freemius-lite/raw/refs/heads/minimal-php/zip/freemius-lite.zip
-2. unzip and put it on your plugin root folder
+---
 
-## **Step 2 - config.json**
+## Overview
 
-find the 'config.json' file on sdk root folder and replace data with your data
+**Freemius Lite** is a drop-in SDK that provides a Freemius-compatible user opt-in and consent flow for WordPress block plugins. It is designed for plugin authors who want a clean, privacy-first opt-in experience without the full weight of the Freemius SDK — while remaining API-compatible so you can upgrade to the full Freemius SDK at any time without code changes.
 
-# or
+### Features
 
-create a file name 'bsdk_config.json' on your plugin root folder and populate with your data. (follow config.json on sdk root folder)
+- **Opt-in consent form** — Full-page form shown on first activation.
+- **Opt-in / Opt-out modal** — Accessible from the Plugins page action links.
+- **Admin notices** — Activation-pending email confirmation notices.
+- **Lifecycle events** — Plugin activation and deactivation tracking (only after explicit user consent).
+- **Permission management** — Granular control over communication, diagnostic, and extension tracking.
+- **Freemius SDK interop** — Automatically defers to the full Freemius SDK when present.
 
-`config.json file format is changed`
+> **No data is ever sent to external servers before the user explicitly opts in.**
 
-## **Step 3 - PHP**
+---
 
-Require the init.php file from {sdk folder} on the main plugin file
-call the class BPlugins_SDK with 1 arguments \
-@constant - \_\_FILE\_\_
+## Installation
 
-> Example
+Freemius Lite is not installed as a standalone plugin — it is bundled inside your block plugin as an SDK.
+
+### Step 1 — Add the SDK
+
+Download the latest SDK zip from the [releases page](https://github.com/bPlugins/freemius-lite-sdk/releases) (or `zip/freemius-lite.zip` in this repo) and extract it into your plugin root:
 
 ```
-if(!function_exists('ttp_init')){
-    function ttp_init(){
-        global $ttp_bs;
-        require_once(plugin_dir_path(__FILE__).'bplugins_sdk/init.php');
-        $ttp_bs = new BPlugins_SDK(__FILE__);
-        return $ttp_bs;
+your-plugin/
+├── freemius-lite/
+│   ├── build/
+│   ├── inc/
+│   │   └── FreemiusAdmin.php
+│   ├── index.php
+│   └── start.php
+├── your-plugin.php
+└── ...
+```
+
+### Step 2 — Bootstrap in PHP
+
+In your main plugin file, require and initialize the SDK:
+
+```php
+if ( ! function_exists( 'your_prefix_fs' ) ) {
+    function your_prefix_fs() {
+        require_once plugin_dir_path( __FILE__ ) . 'freemius-lite/start.php';
+
+        return fs_lite_dynamic_init( array(
+            'id'         => '12345',
+            'slug'       => 'your-plugin-slug',
+            'public_key' => 'pk_xxxxxxxxxxxxxxxxxxxxxxx',
+            'prefix'     => 'your_prefix',
+            '__FILE__'   => __FILE__,
+            'menu'       => array(
+                'first-path' => 'options-general.php?page=your-settings',
+            ),
+        ) );
     }
-    ttp_init();
-}else {
-	ttp_init()->uninstall_plugin();
+    your_prefix_fs();
+} else {
+    your_prefix_fs()->uninstall_plugin();
 }
-
 ```
 
-## Protect from using premium feature in php
+#### Configuration Parameters
 
-```
-$ttp_bs->can_use_premium_feature()
-```
+| Parameter         | Required | Description                                                                  |
+| ----------------- | -------- | ---------------------------------------------------------------------------- |
+| `id`              | Yes      | Your Freemius plugin ID.                                                     |
+| `slug`            | Yes      | Your plugin slug (must match the plugin directory name).                     |
+| `public_key`      | Yes      | Your Freemius public key.                                                    |
+| `__FILE__`        | Yes      | The main plugin file path. Pass `__FILE__`.                                  |
+| `prefix`          | No       | Prefix for options and DOM elements. Defaults to `slug`.                     |
+| `menu.first-path` | No       | Admin page to redirect to after opt-in. Defaults to `plugins.php`.           |
 
-## **Step 4 - Javascript**
-
-import BPLSDK from "../bplugins_sdk/src/components/v1/BPLSDK";
-
-use it on your Edit components
-
-> Example
-
-```
-<BPLSDK setAttributes={setAttributes} />
-```
-
-## Freeemius SDK information.
-
-<details>
-
-<summary style="margin-bottom:18px;"> <b style="font-size:20px;">Permission enable/disable</b></summary>
+### Step 3 — Premium Feature Gating
 
 ```php
+$fs = your_prefix_fs();
 
-  // Init SDK.
-  $api = new Freemius_Api('install', 'FS__API_INSTALL_ID', FS__API_PUBLIC_KEY, FS__API_SECRET_KEY);
-
-  // Update.
-  $result = $api->Api("/permissions.json?sdk_version=2.5.12&url=http://localhost/freemius", 'PUT', array(
-    "permissions" => "site" // site | extensions,
-    "is_enabled" => true
-  ));
-```
-
-</details>
-
-<details>
-<summary style="margin-bottom:18px;"> <b style="font-size:20px;">How to monitor all request from Freemius SDK</b></summary>
-
-### Put this code on FreemiusBase.php - method \_Api() before return on freemius SDK
-
-```php
-
-global $wpdb;
-$table_name = $wpdb->prefix . 'your_custom_table';
-try {
-    $wpdb->insert( $table_name, [
-        'response' => wp_json_encode($result),
-        'path' => $pPath,
-        'method' => $pMethod,
-        'params' => wp_json_encode($pParams),
-        'info' => wp_json_encode([
-        'id' => $this->_id,
-        'scope' => $this->_scope,
-        'public' => $this->_public,
-        'secret' => $this->_secret
-        ])
-    ]);
-} catch (\Throwable $th) {
-  try {
-    $wpdb->insert( $table_name, [
-      'path' => $pPath,
-      'method' => $pMethod,
-      'params' => wp_json_encode($pParams),
-    ]);
-  } catch (\Throwable $th) {
-  //throw $th;
-  }
+if ( $fs->can_use_premium_feature() ) {
+    // Premium-only code.
 }
-
 ```
 
-### Create a plugin and put this code on plugin main file
+> **Note:** In Freemius Lite, `can_use_premium_feature()` always returns `false`. This is intentional — the Lite SDK provides API compatibility so your code works with both Freemius and Freemius Lite without changes. When the full Freemius SDK is active, it takes over and returns the real license status.
+
+### Step 4 — Free/Pro Plugin Switching
+
+To deactivate the free version when the pro version is activated (or vice versa):
 
 ```php
-
-<?php
-
-/*
- * Plugin Name: Freemius Request Monitor
- */
-
- add_action('admin_init', function(){
-    if(!get_option('database_created')){
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'your_custom_table'; // Replace 'your_custom_table' with your desired table name
-
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE $table_name (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            path VARCHAR(255),
-            method VARCHAR(10),
-            params TEXT,
-            response TEXT,
-			info TEXT
-        ) $charset_collate;";
-
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
-
-       	//wp_update_user(['ID' => 1, 'user_email' => 'shagir.islam@gmail.com']);
-        update_option('database_created', 'true');
-    }
- });
-
+$fs = your_prefix_fs();
+$fs->set_basename( true, __FILE__ );
 ```
 
-</details>
+---
+
+## Third-Party Services
+
+This SDK communicates with the following external services **only after the user explicitly opts in** via the consent form:
+
+### 1. bPlugins Middleware API
+
+- **Endpoint:** `https://api.bplugins.com/wp-json/freemius/v1/middleware/`
+- **Used for:** Plugin activation/deactivation events and permission updates.
+- **Sent data:** Site URL, WordPress version, PHP version, plugin version, locale, site title, and an anonymous site identifier.
+- **Privacy policy:** [https://bplugins.com/privacy-policy](https://bplugins.com/privacy-policy)
+
+### 2. Freemius Opt-In Service
+
+- **Endpoint:** `https://wp.freemius.com/action/service/user/install/`
+- **Used for:** Processing user opt-in form submissions.
+- **Sent data:** User name, email, site URL, plugin slug/version, and WordPress environment info.
+- **Privacy policy:** [https://freemius.com/privacy/](https://freemius.com/privacy/)
+- **Terms of service:** [https://freemius.com/terms/](https://freemius.com/terms/)
+
+### 3. WordPress.org Plugin Assets
+
+- **Endpoint:** `https://ps.w.org/`
+- **Used for:** Loading the plugin icon on the opt-in form.
+- **Sent data:** None (GET request for a public image).
+
+---
+
+## Frequently Asked Questions
+
+### Does this SDK send data without user consent?
+
+No. All remote API calls are gated behind explicit user opt-in. The lifecycle hooks (activation/deactivation) only fire after the user has submitted the consent form. This complies with WordPress.org Plugin Guidelines 7 and 9.
+
+### What happens if the full Freemius SDK is also present?
+
+`fs_lite_dynamic_init()` checks for `fs_dynamic_init()` first. If the full Freemius SDK is active, it delegates to it and Freemius Lite does nothing.
+
+### What PHP versions are supported?
+
+PHP 7.4 through 8.5.
+
+### What WordPress versions are supported?
+
+WordPress 6.0 through 6.9.
+
+### Can I use this with non-block plugins?
+
+Yes. The SDK works with any WordPress plugin. The React-based opt-in form and modal are rendered via `wp-scripts` and only require `react`, `react-dom`, and `wp-util` as dependencies — all of which are available in the WordPress admin since WordPress 5.0+.
+
+### What is the `fs_lite_unique_id` option?
+
+An anonymous site identifier (MD5 hash) used to track activation/deactivation events. It contains no personally identifiable information. The SDK migrates from the legacy `unique_id` option name to the namespaced `fs_lite_unique_id` automatically.
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- PHP 7.4+
+- WordPress 6.0+
+
+### Build Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Build production assets
+npm run build
+
+# Watch mode for development
+npm run start
+
+# Format code
+npm run format
+
+# Lint JavaScript / CSS
+npm run lint:js
+npm run lint:css
+
+# Package the SDK zip
+npm run zip
+```
+
+The build output is placed in the `build/` directory and the distributable zip in `zip/freemius-lite.zip`.
+
+---
+
+## Changelog
+
+### 2.2.0
+
+- **Security:** Secret keys are no longer exposed in AJAX responses.
+- **Security:** Nonce actions scoped per plugin ID to prevent cross-plugin validation.
+- **Security:** AJAX action `fs_init` namespaced to `fs_lite_init_{id}`.
+- **Compatibility:** PHP 7.4+ support (removed `private const`).
+- **Compatibility:** React 18 `createRoot` API (removed deprecated `render`).
+- **Fix:** `class_exists` guard on `FreemiusLiteAdmin` prevents fatal errors with multiple SDK instances.
+- **Fix:** `fs_lite_dynamic_init` return type removed for Freemius SDK interop.
+- **Fix:** `unique_id` option renamed to `fs_lite_unique_id` with automatic migration.
+- **Fix:** `useWPAjax` hook — moved guard inside callback to comply with React Rules of Hooks.
+- **Fix:** Query parameter parsing rewritten with `URLSearchParams`.
+- **Improvement:** Capability check reordered before option read in redirect handler.
+
+### 0.1.0
+
+- Initial release.
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome on [GitHub](https://github.com/bPlugins/freemius-lite-sdk).
+
+## License
+
+Licensed under the **GNU General Public License v2.0 or later**. See [LICENSE.md](LICENSE.md) for details.
+
+## Links
+
+- **Source:** [https://bplugins.com/](https://bplugins.com/)
+- **GitHub:** [https://github.com/bPlugins/freemius-lite-sdk](https://github.com/bPlugins/freemius-lite-sdk)
+- **Freemius:** [https://freemius.com/](https://freemius.com/)
